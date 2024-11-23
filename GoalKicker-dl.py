@@ -1,4 +1,5 @@
 import requests
+from tqdm import tqdm
 import os
 import platform
 import subprocess
@@ -9,6 +10,28 @@ downloadLocation = "GoalKicker Books"
 
 # File Exists
 
+def download_pdf_with_progress(url, output_path):
+    try:
+        # Send a GET request to the URL
+        response = requests.get(url, stream=True)
+        response.raise_for_status()  # Raise an error for bad responses (4xx or 5xx)
+        
+        # Get the total file size from the response headers
+        total_size = int(response.headers.get('content-length', 0))
+        block_size = 1024  # Block size for tqdm
+        
+        # Initialize progress bar
+        progress_bar = tqdm(total=total_size, unit='B', unit_scale=True, desc='Downloading', ascii=True)
+
+        with open(output_path, 'wb') as file:
+            for data in response.iter_content(block_size):
+                file.write(data)
+                progress_bar.update(len(data))
+        
+        progress_bar.close()
+        print(f"File downloaded successfully to: {output_path}")
+    except requests.exceptions.RequestException as e:
+        print(f"Error occurred: {e}")
 
 def resourceExists(bookName, bookLink):
     if not os.path.exists(downloadLocation):
@@ -19,8 +42,7 @@ def resourceExists(bookName, bookLink):
         else:
             try:
                 print("Downloading...")
-                cmd = f'aria2c {bookLink} -c -o "{downloadLocation}/{bookName}.pdf"'
-                subprocess.call(cmd, shell=True)
+                download_pdf_with_progress(bookLink, f"{downloadLocation}/{bookName}.pdf")
 
             except Exception:
                 print("Couldn't download the resource file")
